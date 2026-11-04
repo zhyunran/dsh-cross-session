@@ -1,0 +1,60 @@
+{
+  "name": "dsh-cross-session",
+  "version": "0.1.2",
+  "description": "Let an AI agent in one DSH session message, hand files to, search and read another top-level session — peer-session development without subagents.",
+  "type": "module",
+  "main": "./lib/index.js",
+  "exports": {
+    ".": "./lib/index.js",
+    "./cordis.patch.yml": "./cordis.patch.yml",
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "lib",
+    "cordis.patch.yml",
+    "README.md",
+    "README.zh.md",
+    "CHANGELOG.md",
+    "LICENSE"
+  ],
+  "dsh": {
+    "manifestVersion": 1,
+    "bundle": {
+      "patch": "./cordis.patch.yml"
+    }
+  },
+  "peerDependencies": {
+    "@deepseek-ai/dsh-tools": ">=0.2.0-rc.1 <0.3.0"
+  },
+  "engines": {
+    "node": ">=22.19.0"
+  },
+  "scripts": {
+    "test": "node --test test/*.test.mjs"
+  },
+  "keywords": [
+    "dsh",
+    "dsh-plugin",
+    "deepseek-harness",
+    "deepseek",
+    "cordis",
+    "session",
+    "cross-session",
+    "multi-agent",
+    "relay",
+    "messaging"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/zhyunran/dsh-cross-session.git"
+  },
+  "homepage": "https://github.com/zhyunran/dsh-cross-session#readme",
+  "bugs": {
+    "url": "https://github.com/zhyunran/dsh-cross-session/issues"
+  },
+  "license": "MIT",
+  "publishConfig": {
+    "registry": "https://registry.npmjs.org",
+    "access": "public"
+  }
+}

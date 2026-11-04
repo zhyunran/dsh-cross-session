@@ -1,0 +1,16 @@
+# dsh-cross-session — insert this bundle into a DSH profile.
+#
+# Default policy: any top-level session in this profile may message and read any
+# other top-level session. Tighten it in your own profile layer, e.g.
+#
+#   - id: dsh-cross-session
+#     config:
+#       access: workspace          # all | workspace | allowlist
+#       allowlist: []              # session ids / titles / "cwd:<path>"
+#       denylist: []               # never visible or addressable
+#
+- insert:
+    - id: dsh-cross-session
+      name: dsh-cross-session
+      config:
+        access: all
