@@ -82,6 +82,7 @@ export function createHost ({
   resolveAgentImpl,
   createImpl,
   renameImpl,
+  workspaces = [],
   attachments,
   flushResult = true,
 } = {}) {
@@ -140,6 +141,10 @@ export function createHost ({
         titles.set(sessionId, title)
         return { title, seq: 1 }
       },
+    },
+    workspaceRegistry: {
+      list: () => workspaces,
+      get: (id) => workspaces.find((workspace) => workspace.id === id),
     },
     sessionQuery: {
       readTitle: async (id) => titles.get(id),

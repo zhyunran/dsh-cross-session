@@ -2,6 +2,22 @@
 
 All notable changes that affect users of this plugin.
 
+## 0.2.1 — 2026-11-15
+
+### Fixed
+
+- `cross_session_create` now attaches a new session to a **registered DSH workspace** when its `cwd` matches one. Previously `create({cwd})` created a real session but did not add it to `workspace.sessionIds`, so a blank session was invisible in the sidebar workspace list even though `cross_session_list` could see it.
+- Added an explicit `workspace_id` argument and an `attached`/`workspaceId` result. If no registered workspace matches, creation still succeeds but returns a `workspaceWarning` that the session may not appear in a sidebar.
+- Existing hidden sessions are not retroactively attached; create a new one with 0.2.1 after restart.
+
+### Added
+
+- Workspace auto-detection from `cwd`, explicit `workspace_id`, and workspace-conflict validation.
+
+### Tests
+
+- 51 unit tests pass, including workspace auto-attach and explicit `workspace_id`.
+
 ## 0.2.0 — 2026-11-15
 
 The minor bump is for a new user-facing capability plus an expanded permission surface; the existing five tools remain backward compatible.

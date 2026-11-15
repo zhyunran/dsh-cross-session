@@ -29,10 +29,12 @@
 
 ```text
 cross_session_create({ cwd: "C:\\work\\project-b", title: "B 工作区", agent_preset: "talk" })
-→ { sessionId: "session-...", created: true, cwd: "...", title: "..." }
+→ { sessionId: "session-...", created: true, attached: true, workspaceId: "...", cwd: "...", title: "..." }
 ```
 
 - 新会话是**普通的空白顶层会话**：有自己的 transcript、模型、工具和工作区，不是子代理，也不是 Team 成员。
+- 如果 `cwd` 匹配**已注册的 DSH workspace**，创建时会传 `workspaceId` 并挂到该 workspace，侧栏里能看到；否则只按 `cwd` 创建，返回 `workspaceWarning`，可能不在任何 workspace 的侧栏中显示。
+- 可以显式传 `workspace_id` 选择 workspace；它会覆盖 `cwd` 的挂载选择。
 - 创建后默认不会自动给它任务；用 `cross_session_send` 把第一条任务发给返回的 id。
 - 新会话在首轮之前是 `blank`；`cross_session_list` 默认隐藏 blank，需要加 `include_blanks: true` 才能看到。
 - 子代理不能调用；部署可以用 `allowCreate`、`createRoots`、`maxCreatePerMinute` 收紧。
@@ -66,7 +68,7 @@ cross_session_create({ cwd: "C:\\work\\project-b", title: "B 工作区", agent_p
 ### 方式 A —— DSH 插件管理器（推荐）
 
 1. 下载包：
-   - GitHub Release / 仓库 `dist/` 里的 `dsh-cross-session-0.2.0.tgz`，**或** 克隆本仓库；
+   - GitHub Release / 仓库 `dist/` 里的 `dsh-cross-session-0.2.1.tgz`，**或** 克隆本仓库；
 2. 打开 **DSH → 设置 → 插件**，从以下任一来源安装：
    - 本地 tarball 绝对路径；
    - 含 `package.json` 的本地目录；
@@ -77,7 +79,7 @@ cross_session_create({ cwd: "C:\\work\\project-b", title: "B 工作区", agent_p
 
 ```powershell
 # 本地 tarball（必须绝对路径；相对路径会被插件管理器拒绝）
-dsh plugin --profile desktop add C:\path\to\dsh-cross-session-0.2.0.tgz
+dsh plugin --profile desktop add C:\path\to\dsh-cross-session-0.2.1.tgz
 
 # 或 GitHub tarball（不需要安装 git）
 dsh plugin --profile desktop add https://codeload.github.com/<owner>/dsh-cross-session/tar.gz/<40位commit>
@@ -98,7 +100,7 @@ dsh plugin --profile desktop add dsh-cross-session
 
 ### 状态
 
-- 49 个单元测试全部通过（假宿主，`node --test test/*.test.mjs`）。
+- 51 个单元测试全部通过（假宿主，`node --test test/*.test.mjs`）。
 - 工具声明用真实 `dsh-tools` schema 编译器编译通过。
 - 原有五个工具在隔离的 **DSH 0.2.0-rc.2** web 实例上做过端到端验证；0.2.0 的创建路径由假宿主单元测试和宿主 `sessionController.create` 契约覆盖，本次发布不声称已在真实宿主端到端验证。
 
@@ -320,14 +322,14 @@ git remote add origin https://github.com/<owner>/dsh-cross-session.git
 git push -u origin main
 ```
 
-然后在 GitHub 建一个 release `v0.2.0`，把 `dist/dsh-cross-session-0.2.0.tgz` 作为附件上传。别人有两条安装路径：
+然后在 GitHub 建一个 release `v0.2.1`，把 `dist/dsh-cross-session-0.2.1.tgz` 作为附件上传。别人有两条安装路径：
 
 ```powershell
 # GitHub tarball（不需要 git）
 dsh plugin --profile <profile> add https://codeload.github.com/<owner>/dsh-cross-session/tar.gz/<40位commit>
 
 # 或下载 release 附件到本地
-dsh plugin --profile <profile> add C:\path\to\dsh-cross-session-0.2.0.tgz
+dsh plugin --profile <profile> add C:\path\to\dsh-cross-session-0.2.1.tgz
 ```
 
 想发 npm 就 `npm publish --access public`（manifest 已带 `publishConfig`）。

@@ -7,8 +7,8 @@ import { normalizeConfig } from '../lib/config.js'
 import { createTools } from '../lib/tools.js'
 import { createAgent, createHost, defineTool } from './helpers.mjs'
 
-function build ({ config = {}, sessions = [], createImpl, renameImpl } = {}) {
-  const host = createHost({ sessions, createImpl, renameImpl })
+function build ({ config = {}, sessions = [], workspaces = [], createImpl, renameImpl } = {}) {
+  const host = createHost({ sessions, createImpl, renameImpl, workspaces })
   const tools = createTools({
     defineTool,
     ctx: host.ctx,
@@ -94,4 +94,46 @@ test('cross_session_create can apply a title but does not undo creation when ren
   assert.equal(value.title, 'Will not stick')
   assert.match(value.warning, /title could not be applied/)
   assert.equal(typeof ctx.get('sessionController').create, 'function')
+})
+
+test('cross_session_create attaches to a registered workspace matching cwd', async () => {
+  const root = await tempDir('dsh-create-ws-')
+  try {
+    let captured
+    const { byName, exec } = build({
+      workspaces: [{ id: 'ws-default', path: root, title: 'Default workspace' }],
+      createImpl: async (request) => {
+        captured = request
+        return { sessionId: 'session-ws-created', agentPreset: 'talk' }
+      },
+    })
+    const value = await byName.get('cross_session_create').execute({ cwd: root, agent_preset: 'talk' }, exec)
+    assert.equal(captured.workspaceId, 'ws-default')
+    assert.equal(captured.cwd, undefined)
+    assert.equal(value.workspaceId, 'ws-default')
+    assert.equal(value.attached, true)
+    assert.equal(value.workspaceWarning, undefined)
+  } finally {
+    await rm(root, { recursive: true, force: true })
+  }
+})
+
+test('cross_session_create can attach by explicit workspace_id', async () => {
+  const root = await tempDir('dsh-create-ws-id-')
+  try {
+    let captured
+    const { byName, exec } = build({
+      workspaces: [{ id: 'ws-explicit', path: root }],
+      createImpl: async (request) => {
+        captured = request
+        return { sessionId: 'session-ws-id-created' }
+      },
+    })
+    const value = await byName.get('cross_session_create').execute({ workspace_id: 'ws-explicit' }, exec)
+    assert.equal(captured.workspaceId, 'ws-explicit')
+    assert.equal(value.attached, true)
+    assert.equal(value.cwd, path.resolve(root))
+  } finally {
+    await rm(root, { recursive: true, force: true })
+  }
 })

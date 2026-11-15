@@ -29,10 +29,12 @@ The last two are the important ones: **acceptance is reading the peer's own conv
 
 ```text
 cross_session_create({ cwd: "C:\\work\\project-b", title: "Project B", agent_preset: "talk" })
-→ { sessionId: "session-...", created: true, cwd: "...", title: "..." }
+→ { sessionId: "session-...", created: true, attached: true, workspaceId: "...", cwd: "...", title: "..." }
 ```
 
 - The result is an ordinary **blank top-level session** with its own transcript, model, tools and workspace — not a subagent and not a team member.
+- If `cwd` matches a **registered DSH workspace**, creation passes `workspaceId` and the session is attached, so it appears in that workspace's sidebar. Otherwise it is created with `cwd` only and returns a `workspaceWarning`; it may not be visible in any workspace.
+- Pass `workspace_id` explicitly to choose a workspace; it overrides `cwd` for attachment.
 - It does not receive a task automatically; send the first task to the returned id with `cross_session_send`.
 - It is `blank` until its first turn; `cross_session_list` hides blank sessions by default, so use `include_blanks: true` until then.
 - Subagent callers are refused; deployments can tighten this with `allowCreate`, `createRoots` and `maxCreatePerMinute`.
@@ -66,9 +68,9 @@ Requires **DSH 0.2.x** (desktop or `dsh web`). The plugin is a normal DSH bundle
 ### Option A — DSH plugin manager (recommended)
 
 1. Download the package:
-   - `dsh-cross-session-0.2.0.tgz` from the GitHub release / repo `dist/`, **or** clone this repo.
+   - `dsh-cross-session-0.2.1.tgz` from the GitHub release / repo `dist/`, **or** clone this repo.
 2. Open **DSH → Settings → Plugins** and install the bundle from:
-   - a local tarball path (`.../dsh-cross-session-0.2.0.tgz`), or
+   - a local tarball path (`.../dsh-cross-session-0.2.1.tgz`), or
    - a local directory containing `package.json`, or
    - a GitHub URL if your DSH build supports remote bundle specs.
 3. Restart DSH once so the host loads the new bundle.
@@ -77,7 +79,7 @@ Requires **DSH 0.2.x** (desktop or `dsh web`). The plugin is a normal DSH bundle
 
 ```powershell
 # local tarball (absolute path; a relative path is rejected by the installer)
-dsh plugin --profile desktop add C:\path\to\dsh-cross-session-0.2.0.tgz
+dsh plugin --profile desktop add C:\path\to\dsh-cross-session-0.2.1.tgz
 
 # or a GitHub tarball (works without git installed)
 dsh plugin --profile desktop add https://codeload.github.com/<owner>/dsh-cross-session/tar.gz/<40-char-commit>
@@ -98,7 +100,7 @@ It should call `cross_session_list` and show real session titles. If the tools a
 
 ### Status
 
-- 49 unit tests pass against a fake host (`node --test test/*.test.mjs`).
+- 51 unit tests pass against a fake host (`node --test test/*.test.mjs`).
 - Tool declarations compile with the real `dsh-tools` schema compiler.
 - Existing five tools were end-to-end verified on an isolated DSH **0.2.0-rc.2** web instance; the 0.2.0 creation path is covered by fake-host unit tests and the host `sessionController.create` contract, but is not claimed as live-host verified in this release.
 
@@ -314,20 +316,20 @@ The repository is already an uploadable package (no build step):
 ```powershell
 git init
 git add .
-git commit -m "dsh-cross-session 0.2.0"
+git commit -m "dsh-cross-session 0.2.1"
 git branch -M main
 git remote add origin https://github.com/<owner>/dsh-cross-session.git
 git push -u origin main
 ```
 
-Then create a GitHub release `v0.2.0` and attach `dist/dsh-cross-session-0.2.0.tgz`. Two install paths work for other users:
+Then create a GitHub release `v0.2.1` and attach `dist/dsh-cross-session-0.2.1.tgz`. Two install paths work for other users:
 
 ```powershell
 # GitHub tarball (git not required)
 dsh plugin --profile <profile> add https://codeload.github.com/<owner>/dsh-cross-session/tar.gz/<40-char-commit>
 
 # or the release asset downloaded locally
-dsh plugin --profile <profile> add C:\path\to\dsh-cross-session-0.2.0.tgz
+dsh plugin --profile <profile> add C:\path\to\dsh-cross-session-0.2.1.tgz
 ```
 
 To publish to npm instead: `npm publish --access public` (the manifest already declares `publishConfig`).
