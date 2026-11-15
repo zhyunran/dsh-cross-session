@@ -80,9 +80,12 @@ export function createHost ({
   eventsById = new Map(),
   titles = new Map(),
   resolveAgentImpl,
+  createImpl,
+  renameImpl,
   attachments,
   flushResult = true,
 } = {}) {
+  let createdCount = 0
   const flushCalls = []
   const services = {
     agents: {
@@ -124,6 +127,18 @@ export function createHost ({
         const agent = createAgent({ id, header: { cwd: session.cwd, id } })
         liveAgents.set(id, agent)
         return { agent }
+      },
+      create: async (request) => {
+        if (typeof createImpl === 'function') return createImpl(request)
+        createdCount += 1
+        const sessionId = `session-created-${createdCount}`
+        sessions.push({ id: sessionId, cwd: request.cwd, blank: true, updatedAt: Date.now() })
+        return { sessionId, ...(request.agentPreset === undefined ? {} : { agentPreset: request.agentPreset }) }
+      },
+      rename: async ({ sessionId, title }) => {
+        if (typeof renameImpl === 'function') return renameImpl({ sessionId, title })
+        titles.set(sessionId, title)
+        return { title, seq: 1 }
       },
     },
     sessionQuery: {

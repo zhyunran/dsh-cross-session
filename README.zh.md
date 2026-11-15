@@ -10,17 +10,32 @@
 
 子 agent 的好处是随叫随到，坏处是共享你的回合、你的上下文窗口和你的失败模式。而一个**真实会话**——能在侧边栏点开、有独立模型、独立工具、独立长期历史——在很多任务里是更好的执行者。但在此之前，一个 agent 没有任何办法够到它。
 
-`dsh-cross-session` 给 agent 五个工具，把其他顶层 DSH 会话当成对等体：
+`dsh-cross-session` 给 agent 六个工具，把其他顶层 DSH 会话当成对等体：
 
 | 工具 | 作用 |
 |---|---|
 | `cross_session_list` | 列出其他会话，给出准确的 id / 标题 / 工作目录 / 状态。支持按名字找「B 会话」「C、D、E 那三个」。 |
+| `cross_session_create` | **新建一个空白顶层会话**，可选工作目录、标题和 agent preset。返回 session id；它不是子代理。 |
 | `cross_session_send` | 向一个或多个会话发送消息和**真正的文件附件**。目标会话会像收到用户任务一样醒来执行。 |
 | `cross_session_read` | 读对方的**原始对话记录**：用户消息、assistant 回复，可选工具调用/结果。冷会话也能读。 |
 | `cross_session_search` | 在对方整个对话里按字面词搜索（多个词需出现在同一条消息里）。 |
 | `cross_session_wait` | 等待一个或多个对等会话彻底空闲，然后返回各自最后一条 assistant 消息（从日志里读）。 |
 
 最后两个是关键：**验收方式是读对方自己的对话原文**，而不是相信一个回传信封。这才是「跨会话开发」和「派出去碰运气」的区别。
+
+## 新建顶层会话
+
+`cross_session_create` 是 0.2.0 新增的写操作，默认在代码层关闭；本仓库的 `cordis.patch.yml` 明确启用。
+
+```text
+cross_session_create({ cwd: "C:\\work\\project-b", title: "B 工作区", agent_preset: "talk" })
+→ { sessionId: "session-...", created: true, cwd: "...", title: "..." }
+```
+
+- 新会话是**普通的空白顶层会话**：有自己的 transcript、模型、工具和工作区，不是子代理，也不是 Team 成员。
+- 创建后默认不会自动给它任务；用 `cross_session_send` 把第一条任务发给返回的 id。
+- 新会话在首轮之前是 `blank`；`cross_session_list` 默认隐藏 blank，需要加 `include_blanks: true` 才能看到。
+- 子代理不能调用；部署可以用 `allowCreate`、`createRoots`、`maxCreatePerMinute` 收紧。
 
 ## 用起来是什么样
 
@@ -51,7 +66,7 @@
 ### 方式 A —— DSH 插件管理器（推荐）
 
 1. 下载包：
-   - GitHub Release / 仓库 `dist/` 里的 `dsh-cross-session-0.1.2.tgz`，**或** 克隆本仓库；
+   - GitHub Release / 仓库 `dist/` 里的 `dsh-cross-session-0.2.0.tgz`，**或** 克隆本仓库；
 2. 打开 **DSH → 设置 → 插件**，从以下任一来源安装：
    - 本地 tarball 绝对路径；
    - 含 `package.json` 的本地目录；
@@ -62,7 +77,7 @@
 
 ```powershell
 # 本地 tarball（必须绝对路径；相对路径会被插件管理器拒绝）
-dsh plugin --profile desktop add C:\path\to\dsh-cross-session-0.1.2.tgz
+dsh plugin --profile desktop add C:\path\to\dsh-cross-session-0.2.0.tgz
 
 # 或 GitHub tarball（不需要安装 git）
 dsh plugin --profile desktop add https://codeload.github.com/<owner>/dsh-cross-session/tar.gz/<40位commit>
@@ -83,9 +98,9 @@ dsh plugin --profile desktop add dsh-cross-session
 
 ### 状态
 
-- 43 个单元测试全部通过（假宿主，`node --test test/*.test.mjs`）。
+- 49 个单元测试全部通过（假宿主，`node --test test/*.test.mjs`）。
 - 工具声明用真实 `dsh-tools` schema 编译器编译通过。
-- 在隔离的 **DSH 0.2.0-rc.2** web 实例上做了端到端验证：A 列出 B → 带真实文件附件向 B 发消息 → B 读取附件并完成自己的回合 → A 的 `wait` 拿到 B 的最终文本；随后 A 搜索并读取 B 的对话原文；B 用 `cross_session_send` 回信，A 被来信唤醒；冷会话 B 在第一次联系时被工具自动恢复。
+- 原有五个工具在隔离的 **DSH 0.2.0-rc.2** web 实例上做过端到端验证；0.2.0 的创建路径由假宿主单元测试和宿主 `sessionController.create` 契约覆盖，本次发布不声称已在真实宿主端到端验证。
 
 ## 配置
 
@@ -100,6 +115,9 @@ dsh plugin --profile desktop add dsh-cross-session
     denylist: []               # 永远不列出、不读、不写
     allowSend: true
     allowRead: true
+    allowCreate: false          # 默认关闭；本仓库 patch 打开
+    createRoots: []             # 只允许在这些绝对目录下建会话；空=不限制
+    maxCreatePerMinute: 5
     includeHeader: true
     messageSource: agent-message   # agent-message | user
 ```
@@ -110,6 +128,9 @@ dsh plugin --profile desktop add dsh-cross-session
 | `allowlist` | `[]` | `access: allowlist` 时生效。接受会话 id、精确标题、`cwd:<路径>`；`*` 匹配全部。 |
 | `denylist` | `[]` | 任何模式下都拒绝；词法同 `allowlist`。 |
 | `allowSend` / `allowRead` | `true` | 可分别禁用写/读。 |
+| `allowCreate` | `false` | 代码默认禁止 `cross_session_create`；仓库自带 patch 显式设为 `true`。 |
+| `createRoots` | `[]` | 非空时，新会话的 `cwd` 必须位于这些绝对目录之一。 |
+| `maxCreatePerMinute` | `5` | 每个进程每分钟最多成功创建几个顶层会话。 |
 | `includeHeader` | `true` | 消息前加一段头：发送方 id、说明这是对等会话消息、给出回复工具。 |
 | `messageSource` | `agent-message` | `agent-message` 保留真实归属（`senderSessionId`），在对方 UI 显示为「收到任务消息」；`user` 则看起来像真人输入。 |
 | `maxFileBytes` | 25 MiB | 单个附件大小上限（字节原样存入 append-only 附件库）。 |
@@ -279,7 +300,8 @@ lib/policy.js      谁能看/够到谁
 lib/discovery.js   会话枚举、标题解析
 lib/transcript.js  事件日志 → 可读条目 + 搜索
 lib/transport.js   恢复、投递、落盘、等待
-lib/tools.js       五个工具定义
+lib/create.js      创建顶层会话（校验/限额）
+lib/tools.js       六个工具定义
 lib/render.js      给模型看的文本
 test/              假宿主单元测试
 schema-check/      真实 defineTool 编译检查（不随包发布）
@@ -292,20 +314,20 @@ schema-check/      真实 defineTool 编译检查（不随包发布）
 ```powershell
 git init
 git add .
-git commit -m "dsh-cross-session 0.1.2"
+git commit -m "dsh-cross-session 0.2.0"
 git branch -M main
 git remote add origin https://github.com/<owner>/dsh-cross-session.git
 git push -u origin main
 ```
 
-然后在 GitHub 建一个 release `v0.1.2`，把 `dist/dsh-cross-session-0.1.2.tgz` 作为附件上传。别人有两条安装路径：
+然后在 GitHub 建一个 release `v0.2.0`，把 `dist/dsh-cross-session-0.2.0.tgz` 作为附件上传。别人有两条安装路径：
 
 ```powershell
 # GitHub tarball（不需要 git）
 dsh plugin --profile <profile> add https://codeload.github.com/<owner>/dsh-cross-session/tar.gz/<40位commit>
 
 # 或下载 release 附件到本地
-dsh plugin --profile <profile> add C:\path\to\dsh-cross-session-0.1.2.tgz
+dsh plugin --profile <profile> add C:\path\to\dsh-cross-session-0.2.0.tgz
 ```
 
 想发 npm 就 `npm publish --access public`（manifest 已带 `publishConfig`）。

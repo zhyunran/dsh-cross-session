@@ -10,17 +10,32 @@
 
 Subagents are cheap to spawn but expensive to trust: they share your turn, your context window and your failure mode. A *real* session — one you can open in the sidebar, give its own model, its own tools, its own long-running history — is often the better worker. But until now an agent had no way to reach one.
 
-`dsh-cross-session` gives an agent five tools to treat other top-level DSH sessions as peers:
+`dsh-cross-session` gives an agent six tools to treat other top-level DSH sessions as peers:
 
 | Tool | What it does |
 |---|---|
 | `cross_session_list` | List the other sessions, with exact id / title / cwd / state. Resolve "session B", "the C/D/E sessions" by name. |
+| `cross_session_create` | Create a **blank top-level session**, optionally with a cwd, title and agent preset. Returns its id; it is not a subagent. |
 | `cross_session_send` | Send a message and/or **real file attachments** into one or many sessions. The target wakes and works on it as its own normal turn. |
 | `cross_session_read` | Read the peer's **original transcript** — user messages, assistant replies, optionally tool calls/results. Works on cold sessions. |
 | `cross_session_search` | Search a peer's entire conversation for literal terms (all terms must appear in one message). |
 | `cross_session_wait` | Wait until one or many peers are fully idle, then return each one's final assistant message read from its log. |
 
 The last two are the important ones: **acceptance is reading the peer's own conversation**, not trusting a returned envelope. That is the difference between "delegate and hope" and real cross-session development.
+
+## Create a top-level session
+
+`cross_session_create` is the new write operation in 0.2.0. It is disabled in the code defaults and explicitly enabled by this repository's `cordis.patch.yml`.
+
+```text
+cross_session_create({ cwd: "C:\\work\\project-b", title: "Project B", agent_preset: "talk" })
+→ { sessionId: "session-...", created: true, cwd: "...", title: "..." }
+```
+
+- The result is an ordinary **blank top-level session** with its own transcript, model, tools and workspace — not a subagent and not a team member.
+- It does not receive a task automatically; send the first task to the returned id with `cross_session_send`.
+- It is `blank` until its first turn; `cross_session_list` hides blank sessions by default, so use `include_blanks: true` until then.
+- Subagent callers are refused; deployments can tighten this with `allowCreate`, `createRoots` and `maxCreatePerMinute`.
 
 ## What it feels like
 
@@ -51,9 +66,9 @@ Requires **DSH 0.2.x** (desktop or `dsh web`). The plugin is a normal DSH bundle
 ### Option A — DSH plugin manager (recommended)
 
 1. Download the package:
-   - `dsh-cross-session-0.1.2.tgz` from the GitHub release / repo `dist/`, **or** clone this repo.
+   - `dsh-cross-session-0.2.0.tgz` from the GitHub release / repo `dist/`, **or** clone this repo.
 2. Open **DSH → Settings → Plugins** and install the bundle from:
-   - a local tarball path (`.../dsh-cross-session-0.1.2.tgz`), or
+   - a local tarball path (`.../dsh-cross-session-0.2.0.tgz`), or
    - a local directory containing `package.json`, or
    - a GitHub URL if your DSH build supports remote bundle specs.
 3. Restart DSH once so the host loads the new bundle.
@@ -62,7 +77,7 @@ Requires **DSH 0.2.x** (desktop or `dsh web`). The plugin is a normal DSH bundle
 
 ```powershell
 # local tarball (absolute path; a relative path is rejected by the installer)
-dsh plugin --profile desktop add C:\path\to\dsh-cross-session-0.1.2.tgz
+dsh plugin --profile desktop add C:\path\to\dsh-cross-session-0.2.0.tgz
 
 # or a GitHub tarball (works without git installed)
 dsh plugin --profile desktop add https://codeload.github.com/<owner>/dsh-cross-session/tar.gz/<40-char-commit>
@@ -83,9 +98,9 @@ It should call `cross_session_list` and show real session titles. If the tools a
 
 ### Status
 
-- 43 unit tests pass against a fake host (`node --test test/*.test.mjs`).
+- 49 unit tests pass against a fake host (`node --test test/*.test.mjs`).
 - Tool declarations compile with the real `dsh-tools` schema compiler.
-- End-to-end verified on an isolated DSH **0.2.0-rc.2** web instance: A listed B, sent B a message plus a real file attachment, B read the attachment and finished its own turn, A's `wait` returned B's final text; A then searched and read B's transcript; B replied back with `cross_session_send` and A was woken by the incoming message; a cold B was resumed by the tool on first contact.
+- Existing five tools were end-to-end verified on an isolated DSH **0.2.0-rc.2** web instance; the 0.2.0 creation path is covered by fake-host unit tests and the host `sessionController.create` contract, but is not claimed as live-host verified in this release.
 
 ## Configuration
 
@@ -100,6 +115,9 @@ Defaults are intentionally usable out of the box: **any top-level session in thi
     denylist: []               # never listed, read or written
     allowSend: true
     allowRead: true
+    allowCreate: false          # safe default; this repo's patch enables it
+    createRoots: []             # restrict creation to these absolute directories; empty = no restriction
+    maxCreatePerMinute: 5
     includeHeader: true
     messageSource: agent-message   # agent-message | user
 ```
@@ -110,6 +128,9 @@ Defaults are intentionally usable out of the box: **any top-level session in thi
 | `allowlist` | `[]` | Used by `access: allowlist`. Accepts session ids, exact titles, or `cwd:<path>`. `*` matches everything. |
 | `denylist` | `[]` | Always denied, under every access mode. Same vocabulary as `allowlist`. |
 | `allowSend` / `allowRead` | `true` | Independently disable writes or reads. |
+| `allowCreate` | `false` | Code default denies `cross_session_create`; the repository patch explicitly sets it to `true`. |
+| `createRoots` | `[]` | When non-empty, a new session's `cwd` must be inside one of these absolute directories. |
+| `maxCreatePerMinute` | `5` | Maximum successful top-level creations per process in a rolling minute. |
 | `includeHeader` | `true` | Prefix a header naming the sender id, explaining this is a peer message, and naming the reply tool. |
 | `messageSource` | `agent-message` | `agent-message` gives honest peer attribution (`senderSessionId`) and renders as "task message received" in the peer UI. `user` makes it look like a human message. |
 | `maxFileBytes` | 25 MiB | Largest single attachment copied into the append-only attachment store. |
@@ -279,7 +300,8 @@ lib/policy.js      who may see/address whom
 lib/discovery.js   session listing, title resolution
 lib/transcript.js  event log → readable entries + search
 lib/transport.js   resume, deliver, flush, wait
-lib/tools.js       the five tool definitions
+lib/create.js      top-level creation (validation / limits)
+lib/tools.js       the six tool definitions
 lib/render.js      model-facing text
 test/              unit tests with a fake host
 schema-check/      real defineTool compile check (not shipped)
@@ -292,20 +314,20 @@ The repository is already an uploadable package (no build step):
 ```powershell
 git init
 git add .
-git commit -m "dsh-cross-session 0.1.2"
+git commit -m "dsh-cross-session 0.2.0"
 git branch -M main
 git remote add origin https://github.com/<owner>/dsh-cross-session.git
 git push -u origin main
 ```
 
-Then create a GitHub release `v0.1.2` and attach `dist/dsh-cross-session-0.1.2.tgz`. Two install paths work for other users:
+Then create a GitHub release `v0.2.0` and attach `dist/dsh-cross-session-0.2.0.tgz`. Two install paths work for other users:
 
 ```powershell
 # GitHub tarball (git not required)
 dsh plugin --profile <profile> add https://codeload.github.com/<owner>/dsh-cross-session/tar.gz/<40-char-commit>
 
 # or the release asset downloaded locally
-dsh plugin --profile <profile> add C:\path\to\dsh-cross-session-0.1.2.tgz
+dsh plugin --profile <profile> add C:\path\to\dsh-cross-session-0.2.0.tgz
 ```
 
 To publish to npm instead: `npm publish --access public` (the manifest already declares `publishConfig`).

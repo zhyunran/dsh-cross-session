@@ -1,7 +1,7 @@
 {
   "name": "dsh-cross-session",
-  "version": "0.1.2",
-  "description": "Let an AI agent in one DSH session message, hand files to, search and read another top-level session — peer-session development without subagents.",
+  "version": "0.2.0",
+  "description": "Let an AI agent in one DSH session create, message, hand files to, search and read another top-level session — peer-session development without subagents.",
   "type": "module",
   "main": "./lib/index.js",
   "exports": {

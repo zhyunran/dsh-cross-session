@@ -14,3 +14,7 @@
       name: dsh-cross-session
       config:
         access: all
+        # Creating a blank top-level session is opt-in in code (safe default);
+        # this deployment patch enables it explicitly.
+        allowCreate: true
+        maxCreatePerMinute: 5

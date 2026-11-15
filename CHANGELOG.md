@@ -1,5 +1,43 @@
 # Changelog
 
+All notable changes that affect users of this plugin.
+
+## 0.2.0 — 2026-11-15
+
+The minor bump is for a new user-facing capability plus an expanded permission surface; the existing five tools remain backward compatible.
+
+### Migration
+
+- No breaking API change: `cross_session_list`, `cross_session_send`, `cross_session_read`, `cross_session_search` and `cross_session_wait` keep their arguments and behavior.
+- New creation is opt-in in the code (`allowCreate: false`). The `cordis.patch.yml` shipped in this repository enables it explicitly. If your profile has its own `dsh-cross-session` config block, add `allowCreate: true` there to enable it; otherwise the tool fails with `CREATE_DISABLED`.
+- Review `createRoots` before enabling in a shared or multi-workspace profile.
+
+### Security
+
+- `cross_session_create` creates a real top-level Session, so it is a new write capability, not another read alias. It is limited to ordinary top-level callers; delegated subagents are refused with `SUBAGENT_CALLER`.
+- Creation does not inherit a task, files or a model selection from the caller. The new Session stays blank until a later `cross_session_send`; it uses its own workspace, preset, model and sandbox policy.
+- Deployment controls: `allowCreate` (off in code, on in the repository patch), `createRoots` (absolute directory allowlist) and `maxCreatePerMinute` (default 5). Limit exhaustion returns `CREATE_RATE_LIMITED`; a forbidden cwd returns `CREATE_CWD_FORBIDDEN`.
+- `cross_session_send` still never creates a missing session implicitly; an unknown target remains `SESSION_NOT_FOUND`.
+
+### Added
+
+- `cross_session_create`: create a blank top-level Session with optional existing absolute `cwd`, `title` and `agent_preset`; returns the durable `sessionId`.
+- Creation helper with cwd validation, optional title rename and explicit non-fatal warning if title rename fails.
+- Config fields `allowCreate`, `createRoots` and `maxCreatePerMinute`.
+- Blank-session discovery note: use `cross_session_list({ include_blanks: true })` until the new Session's first turn.
+
+### Changed
+
+- The plugin now registers six tools instead of five.
+- The startup log reports `create=` alongside `access`, `send` and `read`.
+- Documentation and Chinese/English READMEs describe the new tool, its permission controls and its blank-session behavior.
+
+### Tests
+
+- 49 unit tests pass (was 43), including creation success, disabled mode, `createRoots`, rate limiting, subagent refusal and title-rename failure.
+
+Compare: https://github.com/zhyunran/dsh-cross-session/compare/v0.1.2...v0.2.0
+
 ## 0.1.2 — 2026-11-04
 
 - `cross_session_list` now merges Sessions that exist only in the live process (for example a conversation opened moments ago, before the query index/persistence has a row). Their title is read from the live log, so a just-created session is addressable by name.
