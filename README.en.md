@@ -1,7 +1,6 @@
 # dsh-cross-session
 
-**English** 路 [<kbd>中文</kbd>](README.md)
-
+**English** · [<kbd>中文</kbd>](README.md)
 
 **Let an agent in one DSH session talk to another real DSH session — send messages, hand over files, search its history, and read its own final answer. Peer sessions, not subagents.**
 

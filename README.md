@@ -1,8 +1,6 @@
 # dsh-cross-session
 
-**中文** 路 [<kbd>English</kbd>](README.en.md)
-
-**中文** · [English](README.md)
+**中文** · [<kbd>English</kbd>](README.en.md)
 
 **让一个 DSH 会话里的 AI 直接和另一个真实 DSH 会话对话：发消息、发文件、翻它的历史、读它自己的最终答复。是对等会话（peer session），不是子 agent。**
 
