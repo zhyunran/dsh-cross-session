@@ -2,7 +2,6 @@
 
 **English** 路 [**涓枃**](README.md)
 
-**English** · [中文](README.zh.md)
 
 **Let an agent in one DSH session talk to another real DSH session — send messages, hand over files, search its history, and read its own final answer. Peer sessions, not subagents.**
 
